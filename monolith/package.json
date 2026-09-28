@@ -1,0 +1,29 @@
+{
+  "name": "monolith",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "dotenv -e .env -- tsx src/index.ts",
+    "migrate": "dotenv -e .env -- node-pg-migrate up",
+    "migrate:down": "dotenv -e .env -- node-pg-migrate down"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@benchmark/shared": "^1.0.0",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.2",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.3",
+    "@types/pg": "^8.23.1",
+    "dotenv-cli": "^11.0.0",
+    "node-pg-migrate": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

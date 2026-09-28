@@ -1,0 +1,12 @@
+{
+  "name": "ecommerce-benchmark",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "monolith",
+    "microservices/*"
+  ],
+  "dependencies": {
+    "@benchmark/shared": "^1.0.0"
+  }
+}
