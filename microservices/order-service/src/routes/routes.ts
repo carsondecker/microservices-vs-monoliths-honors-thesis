@@ -60,12 +60,7 @@ router.get(
       return res.status(404).json({ error: "Order not found." });
     }
     try {
-      const response = await fetch(
-        `${process.env.BASE_URL}/payment/${id}/pay`,
-        {
-          method: "POST",
-        },
-      );
+      const response = await fetch(`${process.env.BASE_URL}/pricing/${id}`);
 
       const body = await response.text();
 
@@ -98,7 +93,12 @@ router.post(
       return res.status(404).json({ error: "Order not found." });
     }
     try {
-      const response = await fetch(`${process.env.BASE_URL}/pricing/${id}`);
+      const response = await fetch(
+        `${process.env.BASE_URL}/payment/${id}/pay`,
+        {
+          method: "POST",
+        },
+      );
 
       const body = await response.text();
 
