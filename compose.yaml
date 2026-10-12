@@ -15,12 +15,67 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
+  monolith-gateway:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./monolith/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - monolith
+
   monolith:
     build: ./monolith
-    ports:
-      - "3000:3000"
     environment:
       DATABASE_URL: "${DATABASE_URL}/monolith"
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  microservices-gateway:
+    image: nginx:alpine
+    ports:
+      - "3001:80"
+    volumes:
+      - ./microservices/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - order-service
+      - payment-service
+      - pricing-service
+      - product-service
+
+  order-service:
+    build: ./microservices/order-service
+    environment:
+      DATABASE_URL: "${DATABASE_URL}/microservices"
+      BASE_URL: "${BASE_URL}"
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  payment-service:
+    build: ./microservices/payment-service
+    environment:
+      DATABASE_URL: "${DATABASE_URL}/microservices"
+      BASE_URL: "${BASE_URL}"
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  pricing-service:
+    build: ./microservices/pricing-service
+    environment:
+      DATABASE_URL: "${DATABASE_URL}/microservices"
+      BASE_URL: "${BASE_URL}"
+    depends_on:
+      db:
+        condition: service_healthy
+  
+  product-service:
+    build: ./microservices/product-service
+    environment:
+      DATABASE_URL: "${DATABASE_URL}/microservices"
+      BASE_URL: "${BASE_URL}"
     depends_on:
       db:
         condition: service_healthy

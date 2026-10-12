@@ -4,9 +4,6 @@ import { validate } from "../middleware/validate";
 import { pool } from "../db/pool";
 import { createHash } from "node:crypto";
 
-const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
 const router = Router();
 
 router.get("/orders", async (req: Request, res: Response) => {
@@ -76,7 +73,11 @@ router.get(
       WHERE id = $2`,
       [price, id],
     );
-    order.rows[0].price = price;
+    const order = await pool.query(
+      `
+      SELECT * FROM orders WHERE id = $1`,
+      [id],
+    );
     res.json(order.rows[0]);
   },
 );
@@ -109,7 +110,6 @@ router.post(
         error: "Order has already been paid.",
       });
     }
-    await sleep(2000);
     await pool.query(
       `
       UPDATE orders
