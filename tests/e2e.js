@@ -1,118 +1,150 @@
 
-import http from 'k6/http';
-import { check, fail } from 'k6';
-import { Counter } from 'k6/metrics';
+import http from "k6/http";
+import { check, fail, sleep } from "k6";
+import { Counter } from "k6/metrics";
 
-const completedWorkflows = new Counter('completed_workflows');
-const failedWorkflows = new Counter('failed_workflows');
+const completedWorkflows = new Counter("completed_workflows");
+const failedWorkflows = new Counter("failed_workflows");
 
 export const options = {
   scenarios: {
     e2e_checkout: {
-      executor: 'shared-iterations',
-      vus: 10,
-      iterations: 100,
-      maxDuration: '3m',
+      executor: "shared-iterations",
+      vus: Number(__ENV.VUS || 10),
+      iterations: Number(__ENV.ITERATIONS || 100),
+      maxDuration: __ENV.MAX_DURATION || "10m",
     },
   },
 };
 
-const TARGET = __ENV.TARGET || 'monolith';
-const BASE_URL = TARGET == 'monolith' ? 'http://localhost:3000/api' : 'http://localhost:3001/api';
+const TARGET = __ENV.TARGET || "monolith";
+const BASE_URL =
+  TARGET === "monolith"
+    ? "http://localhost:3000/api"
+    : "http://localhost:3001/api";
 
-const headers = {
-  'Content-Type': 'application/json',
-};
+const headers = { "Content-Type": "application/json" };
+
+function waitForApi(url) {
+  while (true) {
+    const response = http.get(url, { timeout: "5s" });
+
+    if (response.status === 200) {
+      console.log("API is ready.");
+      return;
+    }
+
+    console.log(`Waiting for API: status=${response.status}`);
+    sleep(1);
+  }
+}
+
+export function setup() {
+  waitForApi(`${BASE_URL}/products`);
+}
+
+function requireResponse(response, name, predicate) {
+  const passed = predicate(response);
+
+  check(response, {
+    [name]: () => passed,
+  });
+
+  if (!passed) {
+    failedWorkflows.add(1);
+    fail(
+      `${name} failed: status=${response.status}, ` +
+        `body=${String(response.body).slice(0, 500)}`
+    );
+  }
+}
 
 export default function () {
-    try {
-        // create product
-        const createProduct = http.post(
-            `${BASE_URL}/products`,
-            JSON.stringify({
-            name: `Benchmark Product ${__VU}-${__ITER}`,
-            price: 19.99,
-            }),
-            { headers },
-        );
+  // Create product
+  const createProduct = http.post(
+    `${BASE_URL}/products`,
+    JSON.stringify({
+      name: `Benchmark Product ${__VU}-${__ITER}`,
+      price: 19.99,
+    }),
+    { headers }
+  );
 
-        check(createProduct, {
-            'product created': (r) => r.status >= 200 && r.status < 300,
-        });
+  requireResponse(
+    createProduct,
+    "product created",
+    (r) => r.status >= 200 && r.status < 300
+  );
 
-        if (createProduct.status < 200 || createProduct.status >= 300) {
-            fail(`Create product failed: ${createProduct.status} ${createProduct.body}`);
-        }
+  const products = createProduct.json();
+  const productId = Array.isArray(products)
+    ? products[0]?.id
+    : products?.id;
 
-        const products = createProduct.json();
-        const productId = products[0]?.id;
+  if (!productId) {
+    failedWorkflows.add(1);
+    fail(`Product response missing id: ${createProduct.body}`);
+  }
 
-        if (!productId) {
-            fail(`Product response missing id: ${createProduct.body}`);
-        }
+  // Retrieve products
+  const getProducts = http.get(`${BASE_URL}/products`);
 
-        // get products
-        const getProducts = http.get(`${BASE_URL}/products`);
+  requireResponse(
+    getProducts,
+    "products retrieved",
+    (r) => r.status === 200
+  );
 
-        check(getProducts, {
-            'products retrieved': (r) => r.status === 200,
-        });
+  // Create order
+  const createOrder = http.post(
+    `${BASE_URL}/orders`,
+    JSON.stringify({ products: [productId] }),
+    { headers }
+  );
 
-        // create an order using created product
-        const createOrder = http.post(
-            `${BASE_URL}/orders`,
-            JSON.stringify({
-            products: [productId],
-            }),
-            { headers },
-        );
+  requireResponse(
+    createOrder,
+    "order created",
+    (r) => r.status >= 200 && r.status < 300
+  );
 
-        check(createOrder, {
-            'order created': (r) => r.status >= 200 && r.status < 300,
-        });
+  const orderId = createOrder.json()?.id;
 
-        if (createOrder.status < 200 || createOrder.status >= 300) {
-            fail(`Create order failed: ${createOrder.status} ${createOrder.body}`);
-        }
+  if (!orderId) {
+    failedWorkflows.add(1);
+    fail(`Order response missing id: ${createOrder.body}`);
+  }
 
-        const order = createOrder.json();
-        const orderId = order.id;
+  // Retrieve orders
+  const getOrders = http.get(`${BASE_URL}/orders`);
 
-        if (!orderId) {
-            fail(`Order response missing id: ${createOrder.body}`);
-        }
+  requireResponse(
+    getOrders,
+    "orders retrieved",
+    (r) => r.status === 200
+  );
 
-        // get orders
-        const getOrders = http.get(`${BASE_URL}/orders`);
+  // Calculate price
+  const priceOrder = http.get(
+    `${BASE_URL}/orders/${orderId}/price`
+  );
 
-        check(getOrders, {
-            'orders retrieved': (r) => r.status === 200,
-        });
+  requireResponse(
+    priceOrder,
+    "order priced",
+    (r) => r.status >= 200 && r.status < 300
+  );
 
-        // price order (cpu heavy)
-        const priceOrder = http.get(`${BASE_URL}/orders/${orderId}/price`);
+  // Pay for order
+  const payOrder = http.post(
+    `${BASE_URL}/orders/${orderId}/pay`
+  );
 
-        check(priceOrder, {
-            'order priced': (r) => r.status >= 200 && r.status < 300,
-        });
+  requireResponse(
+    payOrder,
+    "order paid",
+    (r) => r.status >= 200 && r.status < 300
+  );
 
-        if (priceOrder.status < 200 || priceOrder.status >= 300) {
-            fail(`Price order failed: ${priceOrder.status} ${priceOrder.body}`);
-        }
-
-        // pay order (fixed delay)
-        const payOrder = http.post(`${BASE_URL}/orders/${orderId}/pay`);
-
-        check(payOrder, {
-            'order paid': (r) => r.status >= 200 && r.status < 300,
-        });
-
-        if (payOrder.status < 200 || payOrder.status >= 300) {
-            fail(`Pay order failed: ${payOrder.status} ${payOrder.body}`);
-        }
-
-        completedWorkflows.add(1);
-    } catch (error) {
-        failedWorkflows.add(1);
-    }
+  completedWorkflows.add(1);
 }

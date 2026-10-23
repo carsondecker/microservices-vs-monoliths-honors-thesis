@@ -61,7 +61,7 @@ router.get(
       return res.status(404).json({ error: "Order not found." });
     }
     let hash = id;
-    const iterations = 500000;
+    const iterations = process.env.PRICING_ITERATIONS ? Number(process.env.PRICING_ITERATIONS) : 500000;
     for (let i = 0; i < iterations; i++) {
       hash = createHash("sha256").update(hash, "utf8").digest("hex");
     }

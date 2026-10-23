@@ -28,6 +28,13 @@ services:
     build: ./monolith
     environment:
       DATABASE_URL: "${DATABASE_URL}/monolith"
+      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-1000}"
+    deploy:
+      replicas: ${MONOLITH_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${MONOLITH_CPUS:-1.0}"
+          memory: ${MONOLITH_MEMORY:-1G}
     depends_on:
       db:
         condition: service_healthy
@@ -49,6 +56,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+    deploy:
+      replicas: ${ORDER_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${ORDER_CPUS:-0.25}"
+          memory: "${ORDER_MEMORY:-256M}"
     depends_on:
       db:
         condition: service_healthy
@@ -58,6 +71,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+    deploy:
+      replicas: ${PAYMENT_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${PAYMENT_CPUS:-0.25}"
+          memory: ${PAYMENT_MEMORY:-256M}
     depends_on:
       db:
         condition: service_healthy
@@ -67,6 +86,13 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-1000}"
+    deploy:
+      replicas: ${PRICING_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${PRICING_CPUS:-0.25}"
+          memory: ${PRICING_MEMORY:-256M}
     depends_on:
       db:
         condition: service_healthy
@@ -76,6 +102,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+    deploy:
+      replicas: ${PRODUCT_REPLICAS:-1}
+      resources:
+        limits:
+          cpus: "${PRODUCT_CPUS:-0.25}"
+          memory: ${PRODUCT_MEMORY:-256M}
     depends_on:
       db:
         condition: service_healthy
