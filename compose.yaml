@@ -28,12 +28,13 @@ services:
     build: ./monolith
     environment:
       DATABASE_URL: "${DATABASE_URL}/monolith"
-      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-1000}"
+      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-10}"
+      WORKERS: "${MONOLITH_CPUS:-4.0}"
     deploy:
       replicas: ${MONOLITH_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${MONOLITH_CPUS:-1.0}"
+          cpus: "${MONOLITH_CPUS:-4.0}"
           memory: ${MONOLITH_MEMORY:-1G}
     depends_on:
       db:
@@ -56,11 +57,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+      WORKERS: "${ORDER_CPUS:-1.0}"
     deploy:
       replicas: ${ORDER_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${ORDER_CPUS:-0.25}"
+          cpus: "${ORDER_CPUS:-1.0}"
           memory: "${ORDER_MEMORY:-256M}"
     depends_on:
       db:
@@ -71,11 +73,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+      WORKERS: "${PAYMENT_CPUS:-1.0}"
     deploy:
       replicas: ${PAYMENT_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${PAYMENT_CPUS:-0.25}"
+          cpus: "${PAYMENT_CPUS:-1.0}"
           memory: ${PAYMENT_MEMORY:-256M}
     depends_on:
       db:
@@ -86,12 +89,13 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
-      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-1000}"
+      WORKERS: "${PRICING_CPUS:-1.0}"
+      PRICING_ITERATIONS: "${PRICING_ITERATIONS:-10}"
     deploy:
       replicas: ${PRICING_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${PRICING_CPUS:-0.25}"
+          cpus: "${PRICING_CPUS:-1.0}"
           memory: ${PRICING_MEMORY:-256M}
     depends_on:
       db:
@@ -102,11 +106,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
+      WORKERS: "${PRODUCT_CPUS:-1.0}"
     deploy:
       replicas: ${PRODUCT_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${PRODUCT_CPUS:-0.25}"
+          cpus: "${PRODUCT_CPUS:-1.0}"
           memory: ${PRODUCT_MEMORY:-256M}
     depends_on:
       db:

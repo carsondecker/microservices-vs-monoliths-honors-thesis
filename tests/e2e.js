@@ -1,4 +1,3 @@
-
 import http from "k6/http";
 import { check, fail, sleep } from "k6";
 import { Counter } from "k6/metrics";
@@ -9,10 +8,9 @@ const failedWorkflows = new Counter("failed_workflows");
 export const options = {
   scenarios: {
     e2e_checkout: {
-      executor: "shared-iterations",
+      executor: "constant-vus",
       vus: Number(__ENV.VUS || 10),
-      iterations: Number(__ENV.ITERATIONS || 100),
-      maxDuration: __ENV.MAX_DURATION || "10m",
+      duration: "30s",
     },
   },
 };
@@ -27,7 +25,10 @@ const headers = { "Content-Type": "application/json" };
 
 function waitForApi(url) {
   while (true) {
-    const response = http.get(url, { timeout: "5s" });
+    const response = http.get(url, {
+      timeout: "5s",
+      tags: { name: "GET /api/products (readiness)" },
+    });
 
     if (response.status === 200) {
       console.log("API is ready.");
@@ -67,7 +68,10 @@ export default function () {
       name: `Benchmark Product ${__VU}-${__ITER}`,
       price: 19.99,
     }),
-    { headers }
+    {
+      headers,
+      tags: { name: "POST /api/products" },
+    }
   );
 
   requireResponse(
@@ -87,7 +91,9 @@ export default function () {
   }
 
   // Retrieve products
-  const getProducts = http.get(`${BASE_URL}/products`);
+  const getProducts = http.get(`${BASE_URL}/products`, {
+    tags: { name: "GET /api/products" },
+  });
 
   requireResponse(
     getProducts,
@@ -99,7 +105,10 @@ export default function () {
   const createOrder = http.post(
     `${BASE_URL}/orders`,
     JSON.stringify({ products: [productId] }),
-    { headers }
+    {
+      headers,
+      tags: { name: "POST /api/orders" },
+    }
   );
 
   requireResponse(
@@ -116,7 +125,9 @@ export default function () {
   }
 
   // Retrieve orders
-  const getOrders = http.get(`${BASE_URL}/orders`);
+  const getOrders = http.get(`${BASE_URL}/orders`, {
+    tags: { name: "GET /api/orders" },
+  });
 
   requireResponse(
     getOrders,
@@ -126,7 +137,8 @@ export default function () {
 
   // Calculate price
   const priceOrder = http.get(
-    `${BASE_URL}/orders/${orderId}/price`
+    `${BASE_URL}/orders/${orderId}/price`,
+    { tags: { name: "GET /api/orders/:id/price" } }
   );
 
   requireResponse(
@@ -137,7 +149,9 @@ export default function () {
 
   // Pay for order
   const payOrder = http.post(
-    `${BASE_URL}/orders/${orderId}/pay`
+    `${BASE_URL}/orders/${orderId}/pay`,
+    null,
+    { tags: { name: "POST /api/orders/:id/pay" } }
   );
 
   requireResponse(

@@ -6,7 +6,7 @@ import { pool } from "../db/pool";
 const router = Router();
 
 router.get("/orders", async (req: Request, res: Response) => {
-  const result = await pool.query("SELECT * FROM order_products");
+  const result = await pool.query("SELECT * FROM order_products LIMIT 100");
   res.send(result.rows);
 });
 

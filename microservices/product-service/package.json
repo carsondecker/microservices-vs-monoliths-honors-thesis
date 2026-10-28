@@ -1,9 +1,9 @@
 {
   "name": "product-service",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "cluster.js",
   "scripts": {
-    "dev": "npx tsx src/index.ts",
+    "dev": "npx tsx src/cluster.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
