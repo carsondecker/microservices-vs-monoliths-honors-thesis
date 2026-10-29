@@ -1,4 +1,3 @@
-
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 const fs = require("node:fs");
@@ -9,32 +8,70 @@ const runNames = ["run-1", "run-2", "run-3"];
 const baseline = {
   MONOLITH_REPLICAS: "1",
   MONOLITH_CPUS: "4",
-  MONOLITH_MEMORY: "1G",
+  MONOLITH_MEMORY: "2G",
 
   PRODUCT_REPLICAS: "1",
   PRODUCT_CPUS: "1",
-  PRODUCT_MEMORY: "256M",
+  PRODUCT_MEMORY: "512M",
 
   ORDER_REPLICAS: "1",
   ORDER_CPUS: "1",
-  ORDER_MEMORY: "256M",
+  ORDER_MEMORY: "512M",
 
   PAYMENT_REPLICAS: "1",
   PAYMENT_CPUS: "1",
-  PAYMENT_MEMORY: "256M",
+  PAYMENT_MEMORY: "512M",
 
   PRICING_REPLICAS: "1",
   PRICING_CPUS: "1",
+  PRICING_MEMORY: "512M",
+};
+
+// Resource-need-based microservice allocation
+const resourceBased = {
+  PRODUCT_CPUS: "1",
+  PRODUCT_MEMORY: "512M",
+
+  ORDER_CPUS: "2",
+  ORDER_MEMORY: "1G",
+
+  PAYMENT_CPUS: "0.5",
+  PAYMENT_MEMORY: "256M",
+
+  PRICING_CPUS: "0.5",
   PRICING_MEMORY: "256M",
 };
 
+// Doubles every CPU and memory value
+function doubled(allocation) {
+  const result = {};
+
+  for (const [key, value] of Object.entries(allocation)) {
+    if (key.endsWith("_CPUS")) {
+      result[key] = String(Number(value) * 2);
+    } else {
+      const match = /^(\d+)([MG])$/.exec(value);
+
+      if (!match) {
+        throw new Error(`Memory value "${value}" for ${key} must look like 256M or 1G`);
+      }
+
+      result[key] = `${Number(match[1]) * 2}${match[2]}`;
+    }
+  }
+
+  return result;
+}
+
 const baselineLoads = [
+  { name: "very-low", VUS: "4", PRICING_ITERATIONS: "10" },
   { name: "low", VUS: "32", PRICING_ITERATIONS: "10" },
   { name: "medium", VUS: "96", PRICING_ITERATIONS: "10" },
   { name: "high", VUS: "160", PRICING_ITERATIONS: "10" },
 ];
 
 const bottleneckLoads = [
+  { name: "very-low", VUS: "4", PRICING_ITERATIONS: "10000" },
   { name: "low", VUS: "32", PRICING_ITERATIONS: "10000" },
   { name: "medium", VUS: "96", PRICING_ITERATIONS: "10000" },
   { name: "high", VUS: "160", PRICING_ITERATIONS: "10000" },
@@ -183,6 +220,64 @@ for (const target of ["monolith", "microservices"]) {
   for (const load of bottleneckLoads) {
     addCase(target, "bottleneck", "horizontal", load, scaling);
   }
+}
+
+// Pricing replicas the resource-based bottleneck case needs so its total CPU
+const monolithBottleneckCpu = 2 * Number(baseline.MONOLITH_CPUS);
+const nonPricingCpu =
+  Number(resourceBased.PRODUCT_CPUS) +
+  Number(resourceBased.ORDER_CPUS) +
+  Number(resourceBased.PAYMENT_CPUS);
+const pricingReplicas = Math.ceil(
+  (monolithBottleneckCpu - nonPricingCpu) / Number(resourceBased.PRICING_CPUS)
+);
+
+if (
+  Math.abs(
+    nonPricingCpu +
+      pricingReplicas * Number(resourceBased.PRICING_CPUS) -
+      monolithBottleneckCpu
+  ) > 1e-9
+) {
+  throw new Error(
+    `${pricingReplicas} pricing replicas cannot match the monolith's total CPU exactly`
+  );
+}
+
+// Resource-need-based microservices
+for (const load of baselineLoads) {
+  addCase("microservices", "e2e", "resource", load, resourceBased);
+}
+
+for (const load of baselineLoads) {
+  addCase(
+    "microservices",
+    "e2e",
+    "resource-vertical",
+    load,
+    doubled(resourceBased)
+  );
+}
+
+for (const load of baselineLoads) {
+  addCase("microservices", "e2e", "resource-horizontal", load, {
+    ...resourceBased,
+    PRODUCT_REPLICAS: "2",
+    ORDER_REPLICAS: "2",
+    PAYMENT_REPLICAS: "2",
+    PRICING_REPLICAS: "2",
+  });
+}
+
+for (const load of bottleneckLoads) {
+  addCase("microservices", "bottleneck", "resource", load, resourceBased);
+}
+
+for (const load of bottleneckLoads) {
+  addCase("microservices", "bottleneck", "resource-horizontal", load, {
+    ...resourceBased,
+    PRICING_REPLICAS: String(pricingReplicas),
+  });
 }
 
 function averageColumn(rows, columnIndex) {

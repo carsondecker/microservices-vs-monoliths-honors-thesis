@@ -57,12 +57,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
-      WORKERS: "${ORDER_CPUS:-1.0}"
+      WORKERS: "${ORDER_CPUS:-2.0}"
     deploy:
       replicas: ${ORDER_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${ORDER_CPUS:-1.0}"
+          cpus: "${ORDER_CPUS:-2.0}"
           memory: "${ORDER_MEMORY:-256M}"
     depends_on:
       db:
@@ -89,13 +89,13 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
-      WORKERS: "${PRICING_CPUS:-1.0}"
+      WORKERS: "${PRICING_CPUS:-0.5}"
       PRICING_ITERATIONS: "${PRICING_ITERATIONS:-10}"
     deploy:
       replicas: ${PRICING_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${PRICING_CPUS:-1.0}"
+          cpus: "${PRICING_CPUS:-0.5}"
           memory: ${PRICING_MEMORY:-256M}
     depends_on:
       db:
@@ -106,12 +106,12 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL}/microservices"
       BASE_URL: "${BASE_URL}"
-      WORKERS: "${PRODUCT_CPUS:-1.0}"
+      WORKERS: "${PRODUCT_CPUS:-0.5}"
     deploy:
       replicas: ${PRODUCT_REPLICAS:-1}
       resources:
         limits:
-          cpus: "${PRODUCT_CPUS:-1.0}"
+          cpus: "${PRODUCT_CPUS:-0.5}"
           memory: ${PRODUCT_MEMORY:-256M}
     depends_on:
       db:
