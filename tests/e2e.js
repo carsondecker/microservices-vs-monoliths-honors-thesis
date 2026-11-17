@@ -6,11 +6,18 @@ const completedWorkflows = new Counter("completed_workflows");
 const failedWorkflows = new Counter("failed_workflows");
 
 export const options = {
+  discardResponseBodies: true,
+  thresholds: {
+    failed_workflows: [{ threshold: "count==0", abortOnFail: true }],
+    "http_req_failed{scenario:e2e_checkout}": [
+      { threshold: "rate==0", abortOnFail: true },
+    ],
+  },
   scenarios: {
     e2e_checkout: {
       executor: "constant-vus",
       vus: Number(__ENV.VUS || 10),
-      duration: "30s",
+      duration: "1m",
     },
   },
 };
@@ -36,7 +43,7 @@ function waitForApi(url) {
     }
 
     console.log(`Waiting for API: status=${response.status}`);
-    sleep(1);
+    sleep(5);
   }
 }
 
@@ -70,6 +77,7 @@ export default function () {
     }),
     {
       headers,
+      responseType: "text",
       tags: { name: "POST /api/products" },
     }
   );
@@ -107,6 +115,7 @@ export default function () {
     JSON.stringify({ products: [productId] }),
     {
       headers,
+      responseType: "text",
       tags: { name: "POST /api/orders" },
     }
   );
@@ -161,4 +170,6 @@ export default function () {
   );
 
   completedWorkflows.add(1);
+
+  sleep(1);
 }

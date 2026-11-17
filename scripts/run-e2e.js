@@ -23,16 +23,19 @@ run("docker", ["compose", "up", "-d", "--wait", "db"]);
 
 const services =
   target === "monolith"
-    ? ["monolith", "monolith-gateway"]
+    ? ["monolith"]
     : [
         "product-service",
         "order-service",
         "payment-service",
         "pricing-service",
-        "microservices-gateway",
       ];
 
+const gateway =
+  target === "monolith" ? "monolith-gateway" : "microservices-gateway";
+
 run("docker", ["compose", "up", "-d", "--build", "--wait", ...services]);
+run("docker", ["compose", "up", "-d", "--wait", "--force-recreate", gateway]);
 
 const result = spawnSync(
   "k6",

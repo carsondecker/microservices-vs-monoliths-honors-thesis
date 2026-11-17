@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const { spawnSync } = require("node:child_process");
  
 const env = process.env;
-const maxP95Ms = Number(env.P95_MS || 1000);
+const maxP95Ms = Number(env.P95_MS || 250);
 const maxErrorRate = Number(env.ERROR_RATE || 0.01);
 const maxVus = Number(env.MAX_VUS || 512);
  
