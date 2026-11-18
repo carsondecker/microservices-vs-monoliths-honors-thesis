@@ -5,45 +5,41 @@ const fs = require("node:fs");
 const resultsRoot = path.resolve("results");
 const runNames = ["run-1", "run-2", "run-3"];
 
-const sleepSeconds = 1;
-
-const maxAttempts = 3;
-
 const baseline = {
   MONOLITH_REPLICAS: "1",
   MONOLITH_CPUS: "2",
-  MONOLITH_MEMORY: "4G",
+  MONOLITH_MEMORY: "2G",
 
   PRODUCT_REPLICAS: "1",
   PRODUCT_CPUS: "0.5",
-  PRODUCT_MEMORY: "1G",
+  PRODUCT_MEMORY: "512M",
 
   ORDER_REPLICAS: "1",
   ORDER_CPUS: "0.5",
-  ORDER_MEMORY: "1G",
+  ORDER_MEMORY: "512M",
 
   PAYMENT_REPLICAS: "1",
   PAYMENT_CPUS: "0.5",
-  PAYMENT_MEMORY: "1G",
+  PAYMENT_MEMORY: "512M",
 
   PRICING_REPLICAS: "1",
   PRICING_CPUS: "0.5",
-  PRICING_MEMORY: "1G",
+  PRICING_MEMORY: "512M",
 };
 
 // Resource-need-based microservice allocation
 const resourceBased = {
   PRODUCT_CPUS: "0.5",
-  PRODUCT_MEMORY: "1G",
+  PRODUCT_MEMORY: "512M",
 
   ORDER_CPUS: "1",
-  ORDER_MEMORY: "2G",
+  ORDER_MEMORY: "1G",
 
   PAYMENT_CPUS: "0.25",
-  PAYMENT_MEMORY: "512M",
+  PAYMENT_MEMORY: "256M",
 
   PRICING_CPUS: "0.25",
-  PRICING_MEMORY: "512M",
+  PRICING_MEMORY: "256M",
 };
 
 // Doubles every CPU and memory value
@@ -68,17 +64,17 @@ function doubled(allocation) {
 }
 
 const baselineLoads = [
-  { name: "very-low", VUS: "4", PRICING_ITERATIONS: "10" },
-  { name: "low", VUS: "32", PRICING_ITERATIONS: "10" },
-  { name: "medium", VUS: "96", PRICING_ITERATIONS: "10" },
-  { name: "high", VUS: "160", PRICING_ITERATIONS: "10" },
+  { name: "very-low", VUS: "2", PRICING_ITERATIONS: "10" },
+  { name: "low", VUS: "16", PRICING_ITERATIONS: "10" },
+  { name: "medium", VUS: "48", PRICING_ITERATIONS: "10" },
+  { name: "high", VUS: "80", PRICING_ITERATIONS: "10" },
 ];
 
 const bottleneckLoads = [
-  { name: "very-low", VUS: "4", PRICING_ITERATIONS: "10000" },
-  { name: "low", VUS: "32", PRICING_ITERATIONS: "10000" },
-  { name: "medium", VUS: "96", PRICING_ITERATIONS: "10000" },
-  { name: "high", VUS: "160", PRICING_ITERATIONS: "10000" },
+  { name: "very-low", VUS: "2", PRICING_ITERATIONS: "10000" },
+  { name: "low", VUS: "16", PRICING_ITERATIONS: "10000" },
+  { name: "medium", VUS: "48", PRICING_ITERATIONS: "10000" },
+  { name: "high", VUS: "80", PRICING_ITERATIONS: "10000" },
 ];
 
 const summaryHeader = [
@@ -106,6 +102,22 @@ function getMetric(metrics, name) {
   return metrics[name]?.values ?? metrics[name] ?? {};
 }
 
+function isCompleted(file) {
+  if (!fs.existsSync(file)) {
+    return false;
+  }
+
+  try {
+    const metrics = JSON.parse(fs.readFileSync(file, "utf8")).metrics ?? {};
+    const failed = getMetric(metrics, "failed_workflows");
+    const completed = getMetric(metrics, "completed_workflows");
+
+    return !(failed.count > 0) && completed.count > 0;
+  } catch {
+    return false;
+  }
+}
+
 function addCase(target, test, variant, load, scaling = {}) {
   const name = `${target}-${test}-${variant}-${load.name}`;
   const summaryName =
@@ -121,7 +133,6 @@ function addCase(target, test, variant, load, scaling = {}) {
       ...load,
       ...scaling,
       TARGET: target,
-      SLEEP_SECONDS: String(sleepSeconds),
     },
   });
 }
@@ -135,29 +146,14 @@ function getSummaryRow(testCase, file) {
   const httpRequests = getMetric(metrics, "http_reqs");
   const workflows = getMetric(metrics, "completed_workflows");
 
-  const sleepMs = sleepSeconds * 1000;
-  const avgIteration = iterations.avg;
-
-  const withoutSleep = (value) =>
-    value === undefined || value === null || value === ""
-      ? ""
-      : Math.max(value - sleepMs, 0);
-
-  const adjustedWorkflowRate =
-    workflows.rate === undefined
-      ? ""
-      : avgIteration > sleepMs
-        ? (workflows.rate * avgIteration) / (avgIteration - sleepMs)
-        : workflows.rate;
-
   return [
     testCase.summaryName,
     requests["p(95)"] ?? "",
     requests.avg ?? "",
-    withoutSleep(iterations["p(95)"]),
-    withoutSleep(iterations.avg),
+    iterations["p(95)"] ?? "",
+    iterations.avg ?? "",
     httpRequests.rate ?? "",
-    adjustedWorkflowRate,
+    workflows.rate ?? "",
   ];
 }
 
@@ -362,13 +358,31 @@ for (const runName of runNames) {
   for (const testCase of cases) {
     console.log(`\n=== ${runName}: ${testCase.name} ===`);
 
-    let succeeded = false;
+    const summaryFile = path.join(
+      resultsDir,
+      testCase.name,
+      "summary.json"
+    );
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (isCompleted(summaryFile)) {
+      console.log(`Already completed, skipping: ${runName}/${testCase.name}`);
+
+      const skippedRow = getSummaryRow(testCase, summaryFile);
+
+      runRows.push(skippedRow);
+
+      fs.appendFileSync(
+        summaryPath,
+        csvRow(skippedRow) + "\n"
+      );
+
+      continue;
+    }
+
+    for (let attempt = 1; ; attempt++) {
       if (attempt > 1) {
         console.log(
-          `Retrying ${runName}/${testCase.name} ` +
-          `(attempt ${attempt}/${maxAttempts})`
+          `Retrying ${runName}/${testCase.name} (attempt ${attempt})`
         );
       }
 
@@ -395,34 +409,13 @@ for (const runName of runNames) {
         throw result.error;
       }
 
-      if (result.status === 0) {
-        succeeded = true;
+      if (result.status === 0 && isCompleted(summaryFile)) {
         break;
       }
 
       console.error(
         `Attempt ${attempt} failed: ${runName}/${testCase.name} ` +
         `(exit ${result.status})`
-      );
-    }
-
-    if (!succeeded) {
-      console.error(
-        `Experiment failed after ${maxAttempts} attempts: ` +
-        `${runName}/${testCase.name}`
-      );
-      process.exit(1);
-    }
-
-    const summaryFile = path.join(
-      resultsDir,
-      testCase.name,
-      "summary.json"
-    );
-
-    if (!fs.existsSync(summaryFile)) {
-      throw new Error(
-        `Expected summary file not found: ${summaryFile}`
       );
     }
 

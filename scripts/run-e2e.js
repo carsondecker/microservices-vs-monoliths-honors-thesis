@@ -38,9 +38,13 @@ run("docker", ["compose", "up", "-d", "--build", "--wait", ...services]);
 run("docker", ["compose", "up", "-d", "--wait", "--force-recreate", gateway]);
 
 const result = spawnSync(
-  "k6",
+  "taskset",
   [
+    "-c", "0,1",
+    "k6",
     "run",
+    "--quiet",
+    "--no-usage-report",
     `--summary-export=${dir}/summary.json`,
     "tests/e2e.js",
   ],

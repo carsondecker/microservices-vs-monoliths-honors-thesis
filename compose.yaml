@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:16
     container_name: benchmark-postgres
+    command: postgres -c max_connections=300
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -39,6 +40,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 5s
   
   microservices-gateway:
     image: nginx:alpine
@@ -67,6 +74,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+        test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+        interval: 1s
+        timeout: 2s
+        retries: 60
+        start_period: 5s
   
   payment-service:
     build: ./microservices/payment-service
@@ -83,6 +96,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 5s
   
   pricing-service:
     build: ./microservices/pricing-service
@@ -122,3 +141,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+      start_period: 5s

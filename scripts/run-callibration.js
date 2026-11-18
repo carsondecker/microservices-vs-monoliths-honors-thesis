@@ -15,7 +15,6 @@ function passes(target, dir, vus) {
       ...env,
       TARGET: target,
       VUS: String(vus),
-      ITERATIONS: String(1000),
       RESULTS_DIR: dir,
       RUN_NAME: name,
     },
@@ -41,7 +40,7 @@ function calibrate(target) {
   const dir = `results/calibrate-${target}-${Date.now()}`;
   let saturated = 0;
   let limitHit = false;
-  for (let vus = 1; vus <= maxVus; vus *= 2) {
+  for (let vus = 8; vus <= maxVus; vus *= 2) {
     if (!passes(target, dir, vus)) {
       limitHit = true;
       break;

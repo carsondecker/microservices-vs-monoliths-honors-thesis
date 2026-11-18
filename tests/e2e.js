@@ -7,6 +7,8 @@ const failedWorkflows = new Counter("failed_workflows");
 
 export const options = {
   discardResponseBodies: true,
+  systemTags: ["status", "method", "name", "scenario"],
+  summaryTrendStats: ["avg", "p(95)", "max"],
   thresholds: {
     failed_workflows: [{ threshold: "count==0", abortOnFail: true }],
     "http_req_failed{scenario:e2e_checkout}": [
@@ -170,6 +172,4 @@ export default function () {
   );
 
   completedWorkflows.add(1);
-
-  sleep(1);
 }
